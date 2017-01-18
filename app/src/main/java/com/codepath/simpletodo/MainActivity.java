@@ -6,7 +6,6 @@ import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.ListView;
 
@@ -22,8 +21,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity {
-    ArrayList<String> items;
-    ArrayAdapter<String> itemsAdapter;
+    ArrayList<TodoItem> items;
+    TodoItemsAdapter adapter;
     ListView lvItems;
 
     private final int REQUEST_CODE = 20;
@@ -41,9 +40,8 @@ public class MainActivity extends AppCompatActivity {
         readItems();
 
         lvItems = (ListView) findViewById(R.id.lvItems);
-        itemsAdapter = new ArrayAdapter<>(this,
-                android.R.layout.simple_list_item_1, items);
-        lvItems.setAdapter(itemsAdapter);
+        adapter = new TodoItemsAdapter(this, items);
+        lvItems.setAdapter(adapter);
 
         setupListViewListener();
         // ATTENTION: This was auto-generated to implement the App Indexing API.
@@ -54,7 +52,7 @@ public class MainActivity extends AppCompatActivity {
     public void onAddItem(View v) {
         EditText etNewItem = (EditText) findViewById(R.id.etNewItem);
         String itemText = etNewItem.getText().toString();
-        itemsAdapter.add(itemText);
+        adapter.add(new TodoItem(itemText, adapter.getCount()));
         etNewItem.setText("");
         writeItems();
     }
@@ -65,7 +63,7 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
                         items.remove(position);
-                        itemsAdapter.notifyDataSetChanged();
+                        adapter.notifyDataSetChanged();
                         writeItems();
                         return true;
                     }
@@ -73,7 +71,7 @@ public class MainActivity extends AppCompatActivity {
         );
         lvItems.setOnItemClickListener(new AdapterView.OnItemClickListener() {
            public void onItemClick(AdapterView<?> parent, View v, int position, long id) {
-               launchEditView((String) items.get(position), position);
+               launchEditView(items.get(position));
            }
         });
     }
@@ -83,9 +81,9 @@ public class MainActivity extends AppCompatActivity {
         File todoFile = new File(filesDir, "todo.txt");
 
         try {
-            items = new ArrayList<String>(FileUtils.readLines(todoFile));
+            items = TodoItem.fromStringArrayList(new ArrayList<String>(FileUtils.readLines(todoFile)));
         } catch (IOException e) {
-            items = new ArrayList<String>();
+            items = new ArrayList<TodoItem>();
         }
     }
 
@@ -93,17 +91,16 @@ public class MainActivity extends AppCompatActivity {
         File filesDir = getFilesDir();
         File todoFile = new File(filesDir, "todo.txt");
         try {
-            FileUtils.writeLines(todoFile, items);
+            FileUtils.writeLines(todoFile, TodoItem.toStringArrayList(items));
         } catch (IOException e) {
             e.printStackTrace();
         }
-
     }
 
-    public void launchEditView(String text, int position) {
+    public void launchEditView(TodoItem todo) {
         Intent i = new Intent(MainActivity.this, EditItemActivity.class);
-        i.putExtra("text", text);
-        i.putExtra("pos",  position);
+        i.putExtra("text", todo.text);
+        i.putExtra("pos",  todo.pos);
         startActivityForResult(i, REQUEST_CODE);
     }
 
@@ -113,9 +110,9 @@ public class MainActivity extends AppCompatActivity {
             String text = data.getExtras().getString("text");
             int    pos  = data.getExtras().getInt("pos",0);
 
-            items.set(pos, text);
+            items.set(pos, new TodoItem(text, pos));
             writeItems();
-            itemsAdapter.notifyDataSetChanged();
+            adapter.notifyDataSetChanged();
         }
     }
 
